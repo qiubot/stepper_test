@@ -22,6 +22,7 @@ Stepper::Stepper(int number_of_steps, int motor_pin_1, int motor_pin_2,
   this->speed = 0;      // motor speed
   this->last_step_time = 0; // time stamp in us of the last step taken
   this->number_of_steps = number_of_steps; // total number of steps for this motor
+  this->motor_enabled = true;
 
 
   // setup the pins on the microcontroller:
@@ -52,17 +53,30 @@ Stepper::Stepper(int number_of_steps, int motor_pin_1, int motor_pin_2,
 
   // pin_count is used by the stepMotor() method:
   this->pin_count = 4;
+  
+  //cout << "Initialization completed" << endl;
+  
+}
+
+Stepper::~Stepper()
+{
+    //motor_run_thd->join();
+    for(int i = 0; i < 4; i++)
+    {
+        gpio[i]->unexport_gpio();
+    } 
+    delete [] gpio;
 }
 
 
 /*
  * Sets the speed in revs per minute
  */
-void Stepper::setSpeed(long whatSpeed)
+void Stepper::setSpeed(double whatSpeed)
 {
     if(whatSpeed > 0)
     {
-        this->step_delay = 60L * 1000L * 1000L / this->number_of_steps / whatSpeed;
+        this->step_delay = (unsigned long)(60L * 1000L * 1000L / this->number_of_steps / whatSpeed);
         this->speed = whatSpeed;
     }
     else if (whatSpeed == 0)
@@ -70,6 +84,12 @@ void Stepper::setSpeed(long whatSpeed)
         this->step_delay = 1000000;
         this->speed = whatSpeed;
     }
+    //cout << "The speed is set as " << speed << endl;
+}
+
+void Stepper::disable()
+{
+    this->motor_enabled = false;
 }
 
 /*
@@ -83,10 +103,14 @@ void Stepper::step(int steps_to_move)
   // decrement the number of steps, moving one step each time:
   while (steps_left > 0)
   {
-      if (this->speed == 0)
+      if (this->motor_enabled == false)
       {
           break;
       }
+      if (this->speed == 0)
+      {
+          continue;
+      }    
       // increment or decrement the step number,
       // depending on direction:
       if (steps_to_move > 0)
@@ -113,15 +137,25 @@ void Stepper::step(int steps_to_move)
 
 void Stepper::stepForever()
 {
-
+//    bool printed = false;
   // decrement the number of steps, moving one step each time:
   while (true)
   {
-      // increment or decrement the step number,
-      // depending on direction:
-      if (this->speed == 0)
+      if (this->motor_enabled == false)
       {
           break;
+      }
+      // increment or decrement the step number,
+      // depending on direction:
+//      if (!printed)
+//      {
+//          cout << "Start run" << endl;
+//          printed = true;
+//          //break;
+//      }
+      if (this->speed == 0)
+      {
+          continue;
       }
       if (this->speed > 0)
       {
@@ -141,6 +175,7 @@ void Stepper::stepForever()
       // step the motor to step number 0, 1, ..., {3 or 10}
       stepMotor(this->step_number % 4);
       usleep(this->step_delay);
+      //cout << "Sleep: " << this->step_delay << std::endl;
   }
 }
 
@@ -160,4 +195,9 @@ void Stepper::stepMotor(int thisStep)
                 gpio[i]->setval_gpio("0");
             }
       }
+}
+
+thread Stepper::getThread()
+{
+    return std::thread([=] { stepForever(); });
 }

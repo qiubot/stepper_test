@@ -12,10 +12,7 @@ void sig_handler(int sig);
 
 bool ctrl_c_pressed = false;
 
-void simpleprint()
-{
-    cout << "Testing Thread!"<< endl;
-}
+int initial_speed = 100;
 
 int main (void)
 {
@@ -43,13 +40,10 @@ int main (void)
     
     for (int i=0; i<4; i++)
     {
-        stepperMotors[i]->setSpeed(100);
         thd[i] = new thread(stepperMotors[i]->getThread());
     }
     
-    //std::thread thd(&simpleprint); 
-    
-    
+  
     //cout << "Thread has started" << endl;
     
     while(true)
@@ -60,12 +54,22 @@ int main (void)
             cout << "destroy steppers" << endl;
             for (int i=0; i<4; i++)
             {
-            stepperMotors[i]->disable();
-            thd[i]->join();
+                stepperMotors[i]->disable();
+                thd[i]->join();
             }
             delete [] stepperMotors;
             delete [] thd;
             break;
+        }
+        else
+        {
+            //initial_speed = initial_speed;
+            for (int i=0; i<4; i++)
+            {
+                stepperMotors[i]->setSpeed(initial_speed);
+            }
+            cout << "Now the speed is " << initial_speed << endl;
+            sleep(3);
         }
     }
 
